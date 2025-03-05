@@ -1,8 +1,143 @@
 <html>
     <head>
         <script src="https://d3js.org/d3.v7.min.js"></script>
+        <script src="https://unpkg.com/d3-simple-slider"></script>
+        <style>
+            .hidden {
+                display: none;
+            }
+
+            body {
+                margin: 0px;
+            }
+
+            main {
+                display: flex;
+                flex-direction: row;
+            }
+
+            .sidebar {
+                width: 400px;
+                background-color: blue;
+                margin: none;
+                display: flex;
+                flex-direction: column;
+                align-items: center;
+            }
+
+            .filtering_suggestion {
+                display: none;
+            }
+
+            .result_indiv {
+                background-color: #3a3a3a;
+                color: white;
+                margin: 10px;
+                cursor: pointer;
+            }
+
+            .popup {
+                background-color: #ffffff;
+                position: fixed;
+                top: 50%;
+                left: 50%;
+                transform: translate(-50%, -50%);
+                width: 75%;
+                border-color: #000000;
+                border-width: 1px;
+                border-radius: 5px;
+            }
+        </style>
     </head>
     <body>
-        <h1>THIS IS WORKING</h1>
+        <main>
+            <div class="sidebar">
+                <!-- INSERT FILTERING TOOLS HERE -->
+                    <svg id="cost-slider-svg" width="350px" height="80px"></svg>
+            </div>
+
+            <div class="mainarea">
+                <div class="barchart">
+                    <!-- interactive bar chart at the top -->
+                </div>
+                <div class="matches" id="matches">
+                    <!-- individual home suggestions -->
+                </div>
+                <div class="filtering_suggestion">
+                    <!-- suggestion to improve search results -->
+                </div>
+                <div class="hidden popup" id="popup">
+                    <!-- appears when you select a result -->
+                     <button id="close">X</button>
+                    <h3 id="title"></h3>
+                    <p id="info"></p>
+                </div>
+            </div>
+        </main>
+
+        
+        <script>
+            const matches_div = d3.select("#matches");
+            const popup = d3.select("#popup");
+            popup.select("#close").on("click", function () {
+                                        popup.attr("class", "hidden popup");
+                                      });
+
+            const requestData = async() => {
+                const zillow_data = await d3.csv("zillow_pittsburgh.csv", d3.autoType);
+
+                // CREATE EXTENTS/SCALES FOR NECESSARY VARIABLES
+
+
+
+
+                // CREATE SLIDERS
+                const costSlider = d3.sliderBottom()
+                                     .min(0)
+                                     .max(100)
+                                     .width(300)
+                                     .ticks(6)
+                                     .default([0,100])
+                                     .fill("grey");
+
+                costSlider.on('onchange', val => {
+                    console.log(val);
+                });
+
+                const costSliderG = d3.select("#cost-slider-svg")
+                                      .append('g')
+                                      .attr('transform', 'translate(25, 20)');
+                costSliderG.call(costSlider);
+
+
+
+
+                let zillow_matches = zillow_data;
+                zillow_matches.forEach( d => {
+                    d['match_pct'] = 100;
+                });
+
+                console.log(zillow_matches);
+
+                function select_result(d) {
+                    console.log("clicked");
+                    popup.attr("class", "popup");
+                    popup.select("#title").text(d['Street Address']);
+                }
+
+                function add_result(d) {
+                    let result_indiv = matches_div.append("div")
+                                                  .attr("class", "result_indiv")
+                                                  .on("click", () => select_result(d));
+                    result_indiv.append("h3").text(d['Street Address']);
+                    result_indiv.append("p").text(d['match_pct'] + "% Match");
+                }
+
+                zillow_matches.forEach( d => {
+                    add_result(d);
+                });
+            }
+            requestData();
+        </script>
     </body>
 </html>
