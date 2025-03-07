@@ -7,6 +7,12 @@
                 display: none;
             }
 
+            header h1 {
+                margin-left: 15px;
+                margin-top: 15px;
+                margin-bottom: 10px;
+            }
+
             body {
                 margin: 0px;
                 font-family: sans-serif;
@@ -69,17 +75,31 @@
                 cursor: pointer;
             }
 
+            #resultnum {
+                margin-left: 10px;
+            }
+
             .popup {
                 background-color: #7d7d7d;
                 position: fixed;
                 top: 50%;
                 left: 50%;
                 transform: translate(-50%, -50%);
-                width: 75%;
+                width: 60%;
+                height: 40%;
                 border-style: solid;
                 border-color: #2f2f2f;
                 border-width: 4px;
                 border-radius: 5px;
+            }
+
+            .barchart {
+                display: flex;
+                flex-wrap: wrap;
+            }
+
+            .barchart svg  {
+                margin-left: 10px;
             }
         </style>
     </head>
@@ -104,9 +124,13 @@
             </div>
 
             <div class="mainarea">
-                <div class="barchart">
+                <div class="barchart" id="bardiv">
                     <!-- interactive bar chart at the top -->
+                    <svg id="cost-bar" width="350px" height="200px"></svg>
+                    <svg id="bed-bar" width="350px" height="200px"></svg>
+                    <svg id="bath-bar" width="350px" height="200px"></svg>
                 </div>
+                <p id="resultnum"></p>
                 <div class="matches" id="matches">
                     <!-- individual home suggestions -->
                 </div>
@@ -115,9 +139,13 @@
                 </div>
                 <div class="hidden popup" id="popup">
                     <!-- appears when you select a result -->
-                     <button id="close">X</button>
+                    <button id="close">X</button>
                     <h3 id="title"></h3>
-                    <p id="info"></p>
+                    <p id="price"></p>
+                    <p id="beds"></p>
+                    <p id="baths"></p>
+                    <p id="sqft"></p>
+                    <p id="yrblt"></p>
                 </div>
             </div>
         </main>
@@ -130,8 +158,21 @@
                                         popup.attr("class", "hidden popup");
                                       });
 
+            const barchart_div = d3.select("#bardiv");
+            const barwidth = barchart_div.select("#bed-bar").attr("width");
+            const barheight = barchart_div.select("#bed-bar").attr("height");
+            const margin = {top: 10, right: 10, bottom: 30, left: 30};
+            const chartWidth = width - margin.left - margin.right;
+            const chartHeight = height - margin.top - margin.bottom;
+            
+
             const requestData = async() => {
                 const zillow_data = await d3.csv("zillow_pittsburgh.csv", d3.autoType);
+                console.log(zillow_data);
+
+            const resultCount = d3.select("#resultnum");
+
+            
 
                 // CREATE EXTENTS/SCALES FOR NECESSARY VARIABLES
                 const costExtent = d3.extent(zillow_data, d => d['Sale Amount']);
@@ -139,12 +180,16 @@
                 const bathroomExtent = d3.extent(zillow_data, d => d['Bathroom']);
 
 
+                // Populate bar graphs up top
+
+
+
                 // RESULTS GENERATION
 
                 function select_result(d) {
                     console.log("clicked");
                     popup.attr("class", "popup");
-                    popup.select("#title").text(d['Street Address']);
+                    popup.select("#title").html(d['Street Address'] +  ", " + d['City'] + ", " + d['State'] + " " + d['Zipcode']);
                 }
 
                 function add_result(d) {
@@ -152,12 +197,16 @@
                                                   .attr("class", "result_indiv")
                                                   .on("click", () => select_result(d));
                     result_indiv.append("h3").text(d['Street Address']);
-                    result_indiv.append("p").text(d['match_pct'] + "% Match");
                 }
 
                 let zillow_matches = zillow_data;
 
                 function filter_adjusted() {
+                    // Clear barchart annotations
+                    d3.select("#cost-bar").selectAll("rect").remove();
+                    d3.select("#bed-bar").selectAll("rect").remove();
+                    d3.select("#bath-bar").selectAll("rect").remove();
+
                     zillow_matches = zillow_data;
 
                     matches_div.selectAll("div").remove();
@@ -169,6 +218,41 @@
                     zillow_matches = zillow_matches.filter(d => (d['Sale Amount'] >= costSelection[0] & d['Sale Amount'] <= costSelection[1]) & (d['Bedrooms'] >= bedSelection[0] & d['Bedrooms'] <= bedSelection[1]) & (d['Bathroom'] >= bathSelection[0] & d['Bathroom'] <= bathSelection[1]));
 
                     zillow_matches.forEach( d => {add_result(d);});
+
+                    resultCount.text(zillow_matches.length + " results");
+
+                    if(zillow_matches.length <= 5) {
+                        // Find attribute with the lowest number of results individually
+                        let recommendation = d3.min([
+                            zillow_matches.filter(d => (d['Sale Amount'] >= costSelection[0] & d['Sale Amount'] <= costSelection[1]).length),
+                            zillow_matches.filter(d => (d['Bedrooms'] >= bedSelection[0] & d['Bedrooms'] <= bedSelection[1]).length), 
+                            zillow_matches.filter(d => (d['Bathroom'] >= bathSelection[0] & d['Bathroom'] <= bathSelection[1]).length)
+                        ]);
+
+                        // Highlight/unhighlight bar graphs to show user what they are missing
+
+                        d3.select("#cost-bar").append("rect")
+                                            .attr("x", 0)
+                                            .attr("y", 0)
+                                            .attr("width", barwidth)
+                                            .attr("height", barheight)
+                                            .attr("fill", "grey");
+
+                        d3.select("#bed-bar").append("rect")
+                                            .attr("x", 0)
+                                            .attr("y", 0)
+                                            .attr("width", barwidth)
+                                            .attr("height", barheight)
+                                            .attr("fill", "grey");
+
+                        d3.select("#bath-bar").append("rect")
+                                            .attr("x", 0)
+                                            .attr("y", 0)
+                                            .attr("width", barwidth)
+                                            .attr("height", barheight)
+                                            .attr("fill", "grey");
+
+                    }
                 }
 
 
@@ -186,7 +270,7 @@
                                      .ticks(6)
                                      .tickFormat(d3.format(".2s"))
                                      .default([costExtent[0],costExtent[1]])
-                                     .fill("grey");
+                                     .fill("lightgrey");
 
                 costSlider.on('onchange', filter_adjusted);
 
@@ -203,7 +287,7 @@
                                      .ticks(bedroomExtent[1]-bedroomExtent[0])
                                      .default([bedroomExtent[0],bedroomExtent[1]])
                                      .step(1)
-                                     .fill("grey");
+                                     .fill("lightgrey");
 
                 bedSlider.on('onchange', filter_adjusted);
 
@@ -220,7 +304,7 @@
                                      .ticks(6)
                                      .step(0.5)
                                      .default([bathroomExtent[0],bathroomExtent[1]])
-                                     .fill("grey");
+                                     .fill("lightgrey");
 
                 bathSlider.on('onchange', filter_adjusted);
 
