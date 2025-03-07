@@ -93,6 +93,20 @@
                 font-size: 20px;
             }
 
+            .indiv_description {
+                display: flex;
+                flex-direction: row;
+            }
+
+            .indiv_description img {
+                height: 110px;
+                margin-left: 20px;
+            }
+
+            .indiv_description p {
+                margin-left: 10px;
+            }
+
             .plus-button {
                 cursor: pointer;
             }
@@ -107,11 +121,48 @@
                 top: 50%;
                 left: 50%;
                 transform: translate(-50%, -50%);
-                width: 60%;
+                width: 40%;
                 height: 40%;
                 border-width: 4px;
                 border-radius: 2px;
                 box-shadow: 2px 2px 2px #585858;
+            }
+
+            .popup_header {
+                display: flex;
+                flex-direction: row;
+            }
+
+            .popup_header h3 {
+                width: 92%;
+            }
+
+            .popup_header p {
+                font-size: 30px;
+                margin-top: 10px;
+                margin-bottom: 10px;
+            }
+
+            .popup_header p {
+                cursor: pointer;
+            }
+
+            .popup_description {
+                display: flex;
+                flex-direction: row;
+            }
+
+            .popup_description p {
+                font-size: 20px;
+            }
+
+            .popup_description_left {
+                margin-left: 20px;
+                width: 60%;
+            }
+
+            .popup_description_left #property-image {
+                height: 220px;
             }
 
             .barchart {
@@ -177,13 +228,23 @@
                 </div>
                 <div class="hidden popup" id="popup">
                     <!-- appears when you select a result -->
-                    <button id="close">X</button>
-                    <h3 id="title"></h3>
-                    <p id="price"></p>
-                    <p id="beds"></p>
-                    <p id="baths"></p>
-                    <p id="sqft"></p>
-                    <p id="yrblt"></p>
+                    <div class="popup_header">
+                        <h3 id="title"></h3>
+                        <p id="close"><strong>X</strong></p>
+                    </div>
+                    <div class="popup_description" id="popup_description">
+                        <div class="popup_description_left" id="popup_description_left">
+                            <img id="property-image" src="">
+                            <p id="hometype"></p>
+                        </div>
+                        <div class="popup_description_right" id="popup_description_right">
+                            <p id="price"></p>
+                            <p id="beds"></p>
+                            <p id="baths"></p>
+                            <p id="sqft"></p>
+                            <p id="yrblt"></p>
+                        </div>
+                    </div>
                 </div>
             </div>
         </main>
@@ -212,9 +273,12 @@
                 const zillow_data = await d3.csv("zillow_pittsburgh.csv", d3.autoType);
                 console.log(zillow_data);
 
-            const resultCount = d3.select("#resultnum");
+                const resultCount = d3.select("#resultnum");
 
-            
+                const propertyTypes = Array.from(new Set(zillow_data.map(d => d['Property Type'])));
+                console.log(propertyTypes);
+
+                
 
 
                 // CREATE EXTENTS/SCALES FOR NECESSARY VARIABLES
@@ -336,9 +400,63 @@
 
                 // RESULTS GENERATION
 
+                // Popup Selections
+                // <div id="popup_description_right">
+                //             <p id="price"></p>
+                //             <p id="beds"></p>
+                //             <p id="baths"></p>
+                //             <p id="sqft"></p>
+                //             <p id="yrblt"></p>
+                //         </div>
+
+
+                const popup_title = popup.select("#title");
+                const popup_image = popup.select("#popup_description").select("#popup_description_left").select("#property-image");
+                const popup_hometype = popup.select("#popup_description").select("#popup_description_left").select("#hometype");
+                const popup_price = popup.select("#popup_description").select("#popup_description_right").select("#price");
+                const popup_beds = popup.select("#popup_description").select("#popup_description_right").select("#beds");
+                const popup_baths = popup.select("#popup_description").select("#popup_description_right").select("#baths");
+                const popup_sqft = popup.select("#popup_description").select("#popup_description_right").select("#sqft");
+                const popup_yrblt = popup.select("#popup_description").select("#popup_description_right").select("#yrblt");
+
                 function select_result(d) {
                     popup.attr("class", "popup");
-                    popup.select("#title").html(d['Street Address'] +  ", " + d['City'] + ", " + d['State'] + " " + d['Zipcode']);
+                    popup_title.html(d['Street Address'] +  ", " + d['City'] + ", " + d['State'] + " " + d['Zipcode']);
+                    popup_image.attr("src", function() {
+                        if (d['Property Type'] === 'SingleFamily') {
+                            return "images/house.png"
+                        }
+                        else if (d['Property Type'] === 'Townhouse') {
+                            return "images/townhouse.png"
+                        }
+                        else if (d['Property Type'] === 'Condomonium') {
+                            return "images/condo.png"
+                        }
+                        else {
+                            return "images/multifamily.png"
+                        }
+                    });
+                    popup_hometype.text(function() {
+                        if (d['Property Type'] === 'SingleFamily') {
+                            return "Property Type: Single Family Home"
+                        }
+                        else if (d['Property Type'] === 'Townhouse') {
+                            return "Property Type: Townhouse"
+                        }
+                        else if (d['Property Type'] === 'Condomonium') {
+                            return "Property Type: Condo"
+                        }
+                        else {
+                            return "Property Type: Multi-Family Home"
+                        }
+                    });
+                    popup_price.text("Sale Price: $" + d3.format(",")(d['Sale Amount']));
+                    popup_beds.text("Bedrooms: " + d['Bedrooms']);
+                    popup_baths.text("Bathrooms: " + d['Bathroom']);
+                    popup_sqft.text("Lot Size (Sq.Ft.): " + d3.format(",")(d['Lot Size (Sq.Ft.)']));
+                    popup_yrblt.text("Year Built: " + d['Year Built']);
+
+
                 }
 
                 function add_result(d) {
@@ -347,6 +465,27 @@
                     let result_indiv_header = result_indiv.append("div").attr("class", "indiv_header");
                     result_indiv_header.append("h3").text(d['Street Address']);
                     result_indiv_header.append("p").html("<strong>+</strong>").attr("class", "plus-button").on("click", () => select_result(d));
+
+                    let result_indiv_description = result_indiv.append("div").attr("class", "indiv_description");
+                    result_indiv_description.append("img").attr("src", function() {
+                        if (d['Property Type'] === 'SingleFamily') {
+                            return "images/house.png"
+                        }
+                        else if (d['Property Type'] === 'Townhouse') {
+                            return "images/townhouse.png"
+                        }
+                        else if (d['Property Type'] === 'Condomonium') {
+                            return "images/condo.png"
+                        }
+                        else {
+                            return "images/multifamily.png"
+                        }
+                    })
+
+                    let result_indiv_description_text = result_indiv_description.append("div")
+                    result_indiv_description_text.append("p").text("Sale Price: $" + d3.format(",")(d['Sale Amount']));
+                    result_indiv_description_text.append("p").text("Bedrooms: " + d['Bedrooms']);
+                    result_indiv_description_text.append("p").text("Bathrooms: " + d['Bathroom']);
                 }
 
                 let zillow_matches = zillow_data;
