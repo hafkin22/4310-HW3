@@ -64,14 +64,36 @@
                 margin-top: 10px;
             }
 
+            .matches {
+                display: flex;
+                flex-wrap: wrap;
+            }
+
             .result_indiv {
-                background-color: #3a3a3a;
-                color: white;
+                background-color: #d1d1d1;
+                color: #000000;
                 margin-bottom: 10px;
                 margin-left: 10px;
                 padding: 5px;
-                width: 700px;
-                border-radius: 5px;
+                width: 350px;
+                height: 200px;
+                border-radius: 2px;
+            }
+
+            .indiv_header {
+                display: flex;
+                flex-direction: row;
+            }
+
+            .indiv_header h3 {
+                width: 300px;
+            }
+
+            .indiv_header p {
+                font-size: 20px;
+            }
+
+            .plus-button {
                 cursor: pointer;
             }
 
@@ -87,15 +109,19 @@
                 transform: translate(-50%, -50%);
                 width: 60%;
                 height: 40%;
-                border-style: solid;
-                border-color: #2f2f2f;
                 border-width: 4px;
-                border-radius: 5px;
+                border-radius: 2px;
+                box-shadow: 2px 2px 2px #585858;
             }
 
             .barchart {
                 display: flex;
                 flex-wrap: wrap;
+            }
+
+            .barchart_indiv p {
+                text-align: center;
+                color: red;
             }
 
             .barchart svg  {
@@ -105,7 +131,7 @@
     </head>
     <body>
         <header>
-            <h1>HomeSearcher</h1>
+            <h1>HomeSearcher - Pittsburgh Edition</h1>
         </header>
         <main>
             <div class="sidebar">
@@ -113,22 +139,34 @@
                 <!-- INSERT FILTERING TOOLS HERE -->
                     <h2>Filters</h2>
                     <h3>Sale Price:</h3>
-                    <svg id="cost-slider-svg" width="350px" height="80px"></svg>
+                    <svg id="cost-slider-svg" width="350" height="80"></svg>
 
                     <h3>Bedrooms:</h3>
-                    <svg id="bed-slider-svg" width="350px" height="80px"></svg>
+                    <svg id="bed-slider-svg" width="350" height="80"></svg>
 
                     <h3>Bathrooms:</h3>
-                    <svg id="bath-slider-svg" width="350px" height="80px"></svg>
+                    <svg id="bath-slider-svg" width="350" height="80"></svg>
                 </div>
             </div>
 
             <div class="mainarea">
                 <div class="barchart" id="bardiv">
                     <!-- interactive bar chart at the top -->
-                    <svg id="cost-bar" width="350px" height="200px"></svg>
-                    <svg id="bed-bar" width="350px" height="200px"></svg>
-                    <svg id="bath-bar" width="350px" height="200px"></svg>
+                    <div class="barchart_indiv" id="cost-bar-div">
+                        <h3>Sale Price Distribution</h3>
+                        <svg id="cost-bar" width="350" height="200"></svg>
+                        <p id="cost-suggestion"></p>
+                    </div>
+                    <div class="barchart_indiv" id="bed-bar-div">
+                        <h3>Bedroom Number Distribution</h3>
+                        <svg id="bed-bar" width="350" height="200"></svg>
+                        <p id="bed-suggestion"></p>
+                    </div>
+                    <div class="barchart_indiv" id="bath-bar-div">
+                        <h3>Bathroom Number Distribution</h3>
+                        <svg id="bath-bar" width="350" height="200"></svg>
+                        <p id="bath-suggestion"></p>
+                    </div>
                 </div>
                 <p id="resultnum"></p>
                 <div class="matches" id="matches">
@@ -159,11 +197,15 @@
                                       });
 
             const barchart_div = d3.select("#bardiv");
-            const barwidth = barchart_div.select("#bed-bar").attr("width");
-            const barheight = barchart_div.select("#bed-bar").attr("height");
+            const cost_bar_svg = d3.select("#cost-bar");
+            const bed_bar_svg = d3.select("#bed-bar");
+            const bath_bar_svg = d3.select("#bath-bar");
+            const barwidth = bed_bar_svg.attr("width");
+            const barheight = bed_bar_svg.attr("height");
             const margin = {top: 10, right: 10, bottom: 30, left: 30};
             const chartWidth = barwidth - margin.left - margin.right;
             const chartHeight = barheight - margin.top - margin.bottom;
+
             
 
             const requestData = async() => {
@@ -174,38 +216,160 @@
 
             
 
+
                 // CREATE EXTENTS/SCALES FOR NECESSARY VARIABLES
                 const costExtent = d3.extent(zillow_data, d => d['Sale Amount']);
+                var costScale = d3.scaleLinear()
+                          .domain(costExtent)
+                          .range([0, chartWidth]);
+
+                cost_bar_svg.append("g")
+                            .attr("class", "x axis")
+                            .attr("transform",`translate(${margin.left},${chartHeight+margin.top})`)
+                            .call(d3.axisBottom(costScale).tickFormat(d3.format(".2s")));
+
+                var cost_histogram = d3.histogram()
+                        .value(d => d['Sale Amount'])
+                        .domain(costScale.domain())
+                        .thresholds(costScale.ticks(15));
+
+                var cost_bins = cost_histogram(zillow_data);     
+                
+                var cost_countScale = d3.scaleLinear()
+                        .domain([0, d3.max(cost_bins,d => d.length)])
+                        .range([chartHeight, 0]);
+
+                cost_bar_svg.append("g")
+                    .attr("transform",`translate(${margin.left},${margin.top})`)
+                    .call(d3.axisLeft(cost_countScale));
+
+                const costBarArea = cost_bar_svg.append("g")
+                                    .attr("transform", `translate(${margin.left}, ${margin.top})`);
+
+                const bars = costBarArea.selectAll("rect")
+                                        .data(cost_bins)
+                                        .enter()
+                                        .append("rect")
+                                        .attr("x", d => costScale(d.x0))
+                                        .attr("y", d => cost_countScale(d.length))
+                                        .attr("width", function(d) { return costScale(d.x1) - costScale(d.x0) -1 ; })
+                                        .attr("height", d => chartHeight - cost_countScale(d.length))
+                                        .style("fill", "#6c87e0");
+
                 const bedroomExtent = d3.extent(zillow_data, d => d['Bedrooms']);
+                var bedScale = d3.scaleLinear()
+                          .domain(bedroomExtent)
+                          .range([0, chartWidth]);
+
+                bed_bar_svg.append("g")
+                            .attr("class", "x axis")
+                            .attr("transform",`translate(${margin.left},${chartHeight+margin.top})`)
+                            .call(d3.axisBottom(bedScale).tickFormat(d3.format(".2s")));
+
+                var bed_histogram = d3.histogram()
+                        .value(d => d['Bedrooms'])
+                        .domain(bedScale.domain())
+                        .thresholds(bedScale.ticks(9));
+
+                var bed_bins = bed_histogram(zillow_data);     
+                
+                var bed_countScale = d3.scaleLinear()
+                        .domain([0, d3.max(bed_bins,d => d.length)])
+                        .range([chartHeight, 0]);
+
+                bed_bar_svg.append("g")
+                    .attr("transform",`translate(${margin.left},${margin.top})`)
+                    .call(d3.axisLeft(bed_countScale));
+
+                const bedBarArea = bed_bar_svg.append("g")
+                                    .attr("transform", `translate(${margin.left}, ${margin.top})`);
+
+                const bedbars = bedBarArea.selectAll("rect")
+                                        .data(bed_bins)
+                                        .enter()
+                                        .append("rect")
+                                        .attr("x", d => bedScale(d.x0))
+                                        .attr("y", d => bed_countScale(d.length))
+                                        .attr("width", function(d) { return bedScale(d.x1) - bedScale(d.x0) -1 ; })
+                                        .attr("height", d => chartHeight - bed_countScale(d.length))
+                                        .style("fill", "#6c87e0");
+
+
                 const bathroomExtent = d3.extent(zillow_data, d => d['Bathroom']);
+                var bathScale = d3.scaleLinear()
+                          .domain(bathroomExtent)
+                          .range([0, chartWidth]);
 
+                bath_bar_svg.append("g")
+                            .attr("class", "x axis")
+                            .attr("transform",`translate(${margin.left},${chartHeight+margin.top})`)
+                            .call(d3.axisBottom(bathScale).tickFormat(d3.format(".2s")));
 
-                // Populate bar graphs up top
+                var bath_histogram = d3.histogram()
+                        .value(d => d['Bathroom'])
+                        .domain(bathScale.domain())
+                        .thresholds(bathScale.ticks(8));
 
+                var bath_bins = bath_histogram(zillow_data);     
+                
+                var bath_countScale = d3.scaleLinear()
+                        .domain([0, d3.max(bath_bins,d => d.length)])
+                        .range([chartHeight, 0]);
+
+                bath_bar_svg.append("g")
+                    .attr("transform",`translate(${margin.left},${margin.top})`)
+                    .call(d3.axisLeft(bath_countScale));
+
+                const bathBarArea = bath_bar_svg.append("g")
+                                    .attr("transform", `translate(${margin.left}, ${margin.top})`);
+
+                const bathbars = bathBarArea.selectAll("rect")
+                                        .data(bath_bins)
+                                        .enter()
+                                        .append("rect")
+                                        .attr("x", d => bathScale(d.x0))
+                                        .attr("y", d => bath_countScale(d.length))
+                                        .attr("width", function(d) { return bathScale(d.x1) - bathScale(d.x0) -1 ; })
+                                        .attr("height", d => chartHeight - bath_countScale(d.length))
+                                        .style("fill", "#6c87e0");
 
 
                 // RESULTS GENERATION
 
                 function select_result(d) {
-                    console.log("clicked");
                     popup.attr("class", "popup");
                     popup.select("#title").html(d['Street Address'] +  ", " + d['City'] + ", " + d['State'] + " " + d['Zipcode']);
                 }
 
                 function add_result(d) {
                     let result_indiv = matches_div.append("div")
-                                                  .attr("class", "result_indiv")
-                                                  .on("click", () => select_result(d));
-                    result_indiv.append("h3").text(d['Street Address']);
+                                                  .attr("class", "result_indiv");
+                    let result_indiv_header = result_indiv.append("div").attr("class", "indiv_header");
+                    result_indiv_header.append("h3").text(d['Street Address']);
+                    result_indiv_header.append("p").html("<strong>+</strong>").attr("class", "plus-button").on("click", () => select_result(d));
                 }
 
                 let zillow_matches = zillow_data;
 
+                // Add g tags for suggestion-related popups on bar graphs
+                const costBarState = cost_bar_svg.append("g").attr("class", "recommendation");
+                const bedBarState = bed_bar_svg.append("g").attr("class", "recommendation");
+                const bathBarState = bath_bar_svg.append("g").attr("class", "recommendation");
+
+                // Select suggestion text boxes
+                const cost_suggestion = d3.select("#cost-bar-div").select("p");
+                const bed_suggestion = d3.select("#bed-bar-div").select("p");
+                const bath_suggestion = d3.select("#bath-bar-div").select("p");
+
                 function filter_adjusted() {
                     // Clear barchart annotations
-                    d3.select("#cost-bar").selectAll("rect").remove();
-                    d3.select("#bed-bar").selectAll("rect").remove();
-                    d3.select("#bath-bar").selectAll("rect").remove();
+                    costBarState.selectAll("rect").remove();
+                    bedBarState.selectAll("rect").remove();
+                    bathBarState.selectAll("rect").remove();
+
+                    cost_suggestion.text("");
+                    bed_suggestion.text("");
+                    bath_suggestion.text("");
 
                     zillow_matches = zillow_data;
 
@@ -221,36 +385,75 @@
 
                     resultCount.text(zillow_matches.length + " results");
 
-                    if(zillow_matches.length <= 5) {
+                    if(zillow_matches.length <= 20) {
                         // Find attribute with the lowest number of results individually
-                        let recommendation = d3.min([
-                            zillow_matches.filter(d => (d['Sale Amount'] >= costSelection[0] & d['Sale Amount'] <= costSelection[1]).length),
-                            zillow_matches.filter(d => (d['Bedrooms'] >= bedSelection[0] & d['Bedrooms'] <= bedSelection[1]).length), 
-                            zillow_matches.filter(d => (d['Bathroom'] >= bathSelection[0] & d['Bathroom'] <= bathSelection[1]).length)
-                        ]);
+                            let sale_count = zillow_data.filter(d => (d['Sale Amount'] >= costSelection[0] && d['Sale Amount'] <= costSelection[1])).length;
+                            let bed_count = zillow_data.filter(d => (d['Bedrooms'] >= bedSelection[0] && d['Bedrooms'] <= bedSelection[1])).length;
+                            let bath_count = zillow_data.filter(d => (d['Bathroom'] >= bathSelection[0] && d['Bathroom'] <= bathSelection[1])).length;
+
+                            let min_count = d3.min([sale_count, bed_count, bath_count]);
 
                         // Highlight/unhighlight bar graphs to show user what they are missing
 
-                        d3.select("#cost-bar").append("rect")
+                        costBarState.append("rect")
                                             .attr("x", 0)
                                             .attr("y", 0)
                                             .attr("width", barwidth)
                                             .attr("height", barheight)
-                                            .attr("fill", "grey");
+                                            .attr("fill", "none")
+                                            .attr("stroke", function () {
+                                                if (min_count === sale_count) {
+                                                    return "red"
+                                                }
+                                                else {
+                                                    return "none"
+                                                }
+                                            }
+                                            );
 
-                        d3.select("#bed-bar").append("rect")
+                        bedBarState.append("rect")
                                             .attr("x", 0)
                                             .attr("y", 0)
                                             .attr("width", barwidth)
                                             .attr("height", barheight)
-                                            .attr("fill", "grey");
+                                            .attr("fill", "none")
+                                            .attr("stroke", function () {
+                                                if (min_count === bed_count) {
+                                                    return "red"
+                                                }
+                                                else {
+                                                    return "none"
+                                                }
+                                            }
+                                            );
 
-                        d3.select("#bath-bar").append("rect")
+                        bathBarState.append("rect")
                                             .attr("x", 0)
                                             .attr("y", 0)
                                             .attr("width", barwidth)
                                             .attr("height", barheight)
-                                            .attr("fill", "grey");
+                                            .attr("fill", "none")
+                                            .attr("stroke", function () {
+                                                if (min_count === bath_count) {
+                                                    return "red"
+                                                }
+                                                else {
+                                                    return "none"
+                                                }
+                                            }
+                                            );
+
+                        if (min_count === sale_count) {
+                            cost_suggestion.text("Try adjusting your price range");
+                        }
+
+                        if (min_count === bed_count) {
+                            bed_suggestion.text("Try adjusting your your bedroom preference");
+                        }
+
+                        if (min_count === bath_count) {
+                            bath_suggestion.text("Try adjusting your bathroom preference");
+                        }
 
                     }
                 }
