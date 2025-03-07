@@ -115,8 +115,17 @@
                 margin-left: 10px;
             }
 
+            .overlay {
+                position: fixed;
+                top: 0px;
+                width: 100%;
+                height: 100%;
+                background-color: rgb(90, 90, 90);
+                opacity: 40%;
+            }
+
             .popup {
-                background-color: #7d7d7d;
+                background-color: #dfdfdf;
                 position: fixed;
                 top: 50%;
                 left: 50%;
@@ -181,6 +190,7 @@
         </style>
     </head>
     <body>
+        <div class="hidden overlay" id="overlay"></div>
         <header>
             <h1>HomeSearcher - Pittsburgh Edition</h1>
         </header>
@@ -226,6 +236,7 @@
                 <div class="filtering_suggestion">
                     <!-- suggestion to improve search results -->
                 </div>
+                
                 <div class="hidden popup" id="popup">
                     <!-- appears when you select a result -->
                     <div class="popup_header">
@@ -253,8 +264,10 @@
         <script>
             const matches_div = d3.select("#matches");
             const popup = d3.select("#popup");
+            const overlay = d3.select("#overlay");
             popup.select("#close").on("click", function () {
                                         popup.attr("class", "hidden popup");
+                                        overlay.attr("class", "hidden overlay");
                                       });
 
             const barchart_div = d3.select("#bardiv");
@@ -281,16 +294,11 @@
                 
 
 
-                // CREATE EXTENTS/SCALES FOR NECESSARY VARIABLES
+                // Sales Price Histogram
                 const costExtent = d3.extent(zillow_data, d => d['Sale Amount']);
                 var costScale = d3.scaleLinear()
                           .domain(costExtent)
                           .range([0, chartWidth]);
-
-                cost_bar_svg.append("g")
-                            .attr("class", "x axis")
-                            .attr("transform",`translate(${margin.left},${chartHeight+margin.top})`)
-                            .call(d3.axisBottom(costScale).tickFormat(d3.format(".2s")));
 
                 var cost_histogram = d3.histogram()
                         .value(d => d['Sale Amount'])
@@ -303,9 +311,7 @@
                         .domain([0, d3.max(cost_bins,d => d.length)])
                         .range([chartHeight, 0]);
 
-                cost_bar_svg.append("g")
-                    .attr("transform",`translate(${margin.left},${margin.top})`)
-                    .call(d3.axisLeft(cost_countScale));
+
 
                 const costBarArea = cost_bar_svg.append("g")
                                     .attr("transform", `translate(${margin.left}, ${margin.top})`);
@@ -320,15 +326,22 @@
                                         .attr("height", d => chartHeight - cost_countScale(d.length))
                                         .style("fill", "#6c87e0");
 
+                cost_bar_svg.append("g")
+                            .attr("class", "x axis")
+                            .attr("transform",`translate(${margin.left},${chartHeight+margin.top})`)
+                            .call(d3.axisBottom(costScale).tickFormat(d3.format(".2s")));
+
+                cost_bar_svg.append("g")
+                    .attr("transform",`translate(${margin.left},${margin.top})`)
+                    .call(d3.axisLeft(cost_countScale));
+
+                // Bedroom histogram
                 const bedroomExtent = d3.extent(zillow_data, d => d['Bedrooms']);
                 var bedScale = d3.scaleLinear()
                           .domain(bedroomExtent)
                           .range([0, chartWidth]);
 
-                bed_bar_svg.append("g")
-                            .attr("class", "x axis")
-                            .attr("transform",`translate(${margin.left},${chartHeight+margin.top})`)
-                            .call(d3.axisBottom(bedScale).tickFormat(d3.format(".2s")));
+
 
                 var bed_histogram = d3.histogram()
                         .value(d => d['Bedrooms'])
@@ -341,9 +354,7 @@
                         .domain([0, d3.max(bed_bins,d => d.length)])
                         .range([chartHeight, 0]);
 
-                bed_bar_svg.append("g")
-                    .attr("transform",`translate(${margin.left},${margin.top})`)
-                    .call(d3.axisLeft(bed_countScale));
+
 
                 const bedBarArea = bed_bar_svg.append("g")
                                     .attr("transform", `translate(${margin.left}, ${margin.top})`);
@@ -358,16 +369,20 @@
                                         .attr("height", d => chartHeight - bed_countScale(d.length))
                                         .style("fill", "#6c87e0");
 
+                bed_bar_svg.append("g")
+                            .attr("class", "x axis")
+                            .attr("transform",`translate(${margin.left},${chartHeight+margin.top})`)
+                            .call(d3.axisBottom(bedScale).tickFormat(d3.format(".2s")));
 
+                bed_bar_svg.append("g")
+                            .attr("transform",`translate(${margin.left},${margin.top})`)
+                            .call(d3.axisLeft(bed_countScale));
+
+                // Bathroom Histogram
                 const bathroomExtent = d3.extent(zillow_data, d => d['Bathroom']);
                 var bathScale = d3.scaleLinear()
                           .domain(bathroomExtent)
                           .range([0, chartWidth]);
-
-                bath_bar_svg.append("g")
-                            .attr("class", "x axis")
-                            .attr("transform",`translate(${margin.left},${chartHeight+margin.top})`)
-                            .call(d3.axisBottom(bathScale).tickFormat(d3.format(".2s")));
 
                 var bath_histogram = d3.histogram()
                         .value(d => d['Bathroom'])
@@ -379,10 +394,6 @@
                 var bath_countScale = d3.scaleLinear()
                         .domain([0, d3.max(bath_bins,d => d.length)])
                         .range([chartHeight, 0]);
-
-                bath_bar_svg.append("g")
-                    .attr("transform",`translate(${margin.left},${margin.top})`)
-                    .call(d3.axisLeft(bath_countScale));
 
                 const bathBarArea = bath_bar_svg.append("g")
                                     .attr("transform", `translate(${margin.left}, ${margin.top})`);
@@ -397,17 +408,14 @@
                                         .attr("height", d => chartHeight - bath_countScale(d.length))
                                         .style("fill", "#6c87e0");
 
+                bath_bar_svg.append("g")
+                            .attr("class", "x axis")
+                            .attr("transform",`translate(${margin.left},${chartHeight+margin.top})`)
+                            .call(d3.axisBottom(bathScale).tickFormat(d3.format(".2s")));
 
-                // RESULTS GENERATION
-
-                // Popup Selections
-                // <div id="popup_description_right">
-                //             <p id="price"></p>
-                //             <p id="beds"></p>
-                //             <p id="baths"></p>
-                //             <p id="sqft"></p>
-                //             <p id="yrblt"></p>
-                //         </div>
+                bath_bar_svg.append("g")
+                            .attr("transform",`translate(${margin.left},${margin.top})`)
+                            .call(d3.axisLeft(bath_countScale));
 
 
                 const popup_title = popup.select("#title");
@@ -421,6 +429,7 @@
 
                 function select_result(d) {
                     popup.attr("class", "popup");
+                    overlay.attr("class", "overlay");
                     popup_title.html(d['Street Address'] +  ", " + d['City'] + ", " + d['State'] + " " + d['Zipcode']);
                     popup_image.attr("src", function() {
                         if (d['Property Type'] === 'SingleFamily') {
@@ -524,7 +533,7 @@
 
                     resultCount.text(zillow_matches.length + " results");
 
-                    if(zillow_matches.length <= 20) {
+                    if(zillow_matches.length < 20) {
                         // Find attribute with the lowest number of results individually
                             let sale_count = zillow_data.filter(d => (d['Sale Amount'] >= costSelection[0] && d['Sale Amount'] <= costSelection[1])).length;
                             let bed_count = zillow_data.filter(d => (d['Bedrooms'] >= bedSelection[0] && d['Bedrooms'] <= bedSelection[1])).length;
