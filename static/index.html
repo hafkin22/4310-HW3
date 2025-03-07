@@ -162,8 +162,8 @@
             const barwidth = barchart_div.select("#bed-bar").attr("width");
             const barheight = barchart_div.select("#bed-bar").attr("height");
             const margin = {top: 10, right: 10, bottom: 30, left: 30};
-            const chartWidth = width - margin.left - margin.right;
-            const chartHeight = height - margin.top - margin.bottom;
+            const chartWidth = barwidth - margin.left - margin.right;
+            const chartHeight = barheight - margin.top - margin.bottom;
             
 
             const requestData = async() => {
