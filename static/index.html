@@ -9,6 +9,7 @@
 
             body {
                 margin: 0px;
+                font-family: sans-serif;
             }
 
             main {
@@ -18,42 +19,88 @@
 
             .sidebar {
                 width: 400px;
-                background-color: blue;
-                margin: none;
+                background-color: #ffffff;
+                margin-left: 15px;
+                margin-top: 10px;
+                margin-right: 0px;
+                margin-bottom: 0px;
                 display: flex;
                 flex-direction: column;
                 align-items: center;
+            }
+
+            .filters {
+                display: flex;
+                flex-direction: column;
+                background-color: #6c87e0;
+                margin: 0px;
+                width: 400px;
+                border-radius: 5px;
+
+            }
+
+            .filters svg {
+                align-self: center;
+            }
+
+            .filters h2, h3 {
+                padding-left: 10px;
+                margin-left: 10px;
+                margin-bottom: 10px;
+                margin-right: 0px;
             }
 
             .filtering_suggestion {
                 display: none;
             }
 
+            .mainarea {
+                margin-top: 10px;
+            }
+
             .result_indiv {
                 background-color: #3a3a3a;
                 color: white;
-                margin: 10px;
+                margin-bottom: 10px;
+                margin-left: 10px;
+                padding: 5px;
+                width: 700px;
+                border-radius: 5px;
                 cursor: pointer;
             }
 
             .popup {
-                background-color: #ffffff;
+                background-color: #7d7d7d;
                 position: fixed;
                 top: 50%;
                 left: 50%;
                 transform: translate(-50%, -50%);
                 width: 75%;
-                border-color: #000000;
-                border-width: 1px;
+                border-style: solid;
+                border-color: #2f2f2f;
+                border-width: 4px;
                 border-radius: 5px;
             }
         </style>
     </head>
     <body>
+        <header>
+            <h1>HomeSearcher</h1>
+        </header>
         <main>
             <div class="sidebar">
+                <div class="filters">
                 <!-- INSERT FILTERING TOOLS HERE -->
+                    <h2>Filters</h2>
+                    <h3>Sale Price:</h3>
                     <svg id="cost-slider-svg" width="350px" height="80px"></svg>
+
+                    <h3>Bedrooms:</h3>
+                    <svg id="bed-slider-svg" width="350px" height="80px"></svg>
+
+                    <h3>Bathrooms:</h3>
+                    <svg id="bath-slider-svg" width="350px" height="80px"></svg>
+                </div>
             </div>
 
             <div class="mainarea">
@@ -87,37 +134,12 @@
                 const zillow_data = await d3.csv("zillow_pittsburgh.csv", d3.autoType);
 
                 // CREATE EXTENTS/SCALES FOR NECESSARY VARIABLES
+                const costExtent = d3.extent(zillow_data, d => d['Sale Amount']);
+                const bedroomExtent = d3.extent(zillow_data, d => d['Bedrooms']);
+                const bathroomExtent = d3.extent(zillow_data, d => d['Bathroom']);
 
 
-
-
-                // CREATE SLIDERS
-                const costSlider = d3.sliderBottom()
-                                     .min(0)
-                                     .max(100)
-                                     .width(300)
-                                     .ticks(6)
-                                     .default([0,100])
-                                     .fill("grey");
-
-                costSlider.on('onchange', val => {
-                    console.log(val);
-                });
-
-                const costSliderG = d3.select("#cost-slider-svg")
-                                      .append('g')
-                                      .attr('transform', 'translate(25, 20)');
-                costSliderG.call(costSlider);
-
-
-
-
-                let zillow_matches = zillow_data;
-                zillow_matches.forEach( d => {
-                    d['match_pct'] = 100;
-                });
-
-                console.log(zillow_matches);
+                // RESULTS GENERATION
 
                 function select_result(d) {
                     console.log("clicked");
@@ -133,9 +155,83 @@
                     result_indiv.append("p").text(d['match_pct'] + "% Match");
                 }
 
+                let zillow_matches = zillow_data;
+
+                function filter_adjusted() {
+                    zillow_matches = zillow_data;
+
+                    matches_div.selectAll("div").remove();
+
+                    let costSelection = costSlider.value();
+                    let bedSelection = bedSlider.value();
+                    let bathSelection = bathSlider.value();
+
+                    zillow_matches = zillow_matches.filter(d => (d['Sale Amount'] >= costSelection[0] & d['Sale Amount'] <= costSelection[1]) & (d['Bedrooms'] >= bedSelection[0] & d['Bedrooms'] <= bedSelection[1]) & (d['Bathroom'] >= bathSelection[0] & d['Bathroom'] <= bathSelection[1]));
+
+                    zillow_matches.forEach( d => {add_result(d);});
+                }
+
+
                 zillow_matches.forEach( d => {
-                    add_result(d);
+                    d['match_pct'] = 100;
                 });
+
+
+                // CREATE SLIDERS
+                // Cost slider
+                const costSlider = d3.sliderBottom()
+                                     .min(costExtent[0])
+                                     .max(costExtent[1])
+                                     .width(300)
+                                     .ticks(6)
+                                     .tickFormat(d3.format(".2s"))
+                                     .default([costExtent[0],costExtent[1]])
+                                     .fill("grey");
+
+                costSlider.on('onchange', filter_adjusted);
+
+                const costSliderG = d3.select("#cost-slider-svg")
+                                      .append('g')
+                                      .attr('transform', 'translate(25, 20)');
+                costSliderG.call(costSlider);
+
+                // Bedroom slider
+                const bedSlider = d3.sliderBottom()
+                                     .min(bedroomExtent[0])
+                                     .max(bedroomExtent[1])
+                                     .width(300)
+                                     .ticks(bedroomExtent[1]-bedroomExtent[0])
+                                     .default([bedroomExtent[0],bedroomExtent[1]])
+                                     .step(1)
+                                     .fill("grey");
+
+                bedSlider.on('onchange', filter_adjusted);
+
+                const bedSliderG = d3.select("#bed-slider-svg")
+                                      .append('g')
+                                      .attr('transform', 'translate(25, 20)');
+                bedSliderG.call(bedSlider);
+
+                // Bathroom slider
+                const bathSlider = d3.sliderBottom()
+                                     .min(bathroomExtent[0])
+                                     .max(bathroomExtent[1])
+                                     .width(300)
+                                     .ticks(6)
+                                     .step(0.5)
+                                     .default([bathroomExtent[0],bathroomExtent[1]])
+                                     .fill("grey");
+
+                bathSlider.on('onchange', filter_adjusted);
+
+                const bathSliderG = d3.select("#bath-slider-svg")
+                                      .append('g')
+                                      .attr('transform', 'translate(25, 20)');
+                bathSliderG.call(bathSlider);
+
+                filter_adjusted();
+
+
             }
             requestData();
         </script>
